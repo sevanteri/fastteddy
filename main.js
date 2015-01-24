@@ -13,7 +13,7 @@ function preload() {
     game.load.spritesheet('boss', 'boss.png', 128, 128, 4);
     game.load.image('background', 'bg.png');
     game.load.image('bullet', 'bullet.png');
-    game.load.image('enemyBullet', 'rabbit.png');
+    game.load.image('enemyBullet', 'boss_spruit.png');
     game.load.image('explosion', 'rabbit.png');
 
     game.load.audio('music', 'music.ogg');
@@ -182,10 +182,10 @@ function update() {
         //ply.body.velocity.x = Math.round(ply.body.velocity.x);
         //ply.body.velocity.y = Math.round(ply.body.velocity.y);
 
-        moving = (wasd.up.isUp ||
-                wasd.down.isUp ||
-                wasd.left.isUp ||
-                wasd.right.isUp);
+        moving = (wasd.up.isDown ||
+                wasd.down.isDown ||
+                wasd.left.isDown ||
+                wasd.right.isDown);
         shooting = (
                 cursors.up.isDown ||
                 cursors.down.isDown ||
@@ -322,6 +322,16 @@ function startBossFight() {
     enemies.callAll('kill');
     boss.revive();
     boss.reset(140, 140, bossLives);
+    moveBoss();
+}
+function moveBoss() {
+    var tween = game.add.tween(boss);
+    tween.to({y: height - 140}, 5000)
+        .to({x: width - 140}, 8000)
+        .to({y: 140}, 5000)
+        .to({x:  140}, 8000)
+        .loop()
+        .start();
 }
 function collisionBulletEnemy(bullet, enemy) {
     bullet.kill();
