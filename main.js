@@ -8,9 +8,9 @@ var game = new Phaser.Game(width, height, Phaser.AUTO, 'Fast Teddy', {
 });
 
 function preload() {
-    game.load.spritesheet('teddy', 'teddy.png', 64, 64, 30);
+    game.load.spritesheet('teddy', 'teddy.png', 64, 64, 34);
     game.load.spritesheet('rabbit', 'rabbit.png', 64, 64, 28);
-    game.load.spritesheet('boss', 'boss.png', 128, 128, 4);
+    game.load.spritesheet('boss', 'boss.png', 128, 128, 8);
     game.load.image('background', 'bg.png');
     game.load.image('bullet', 'bullet.png');
     game.load.image('enemyBullet', 'boss_spruit.png');
@@ -93,8 +93,9 @@ function create() {
     boss = game.add.sprite(140, 140, 'boss');
     boss.anchor.setTo(.5,.5);
     game.physics.enable(boss, Phaser.Physics.ARCADE);
-    boss.animations.add('lol');
-    boss.animations.play('lol', 2, true);
+    boss.animations.add('lol', [0,1,2,3], 2, true);
+    boss.animations.add('death', [4,5,6,7], 4, false);
+    boss.animations.play('lol');
     boss.body.collideWorldBounds = true;
     boss.body.setSize(64,64);
     boss.kill();
@@ -114,6 +115,7 @@ function create() {
     ply.animations.add('standu', [1]);
     ply.animations.add('standl', [2]);
     ply.animations.add('standr', [3]);
+    ply.animations.add('death', [30,31,32,33], 4, false);
     ply.animations.play('standd');
 
     // enemies
@@ -167,7 +169,7 @@ function setupEnemy(enemy) {
     enemy.animations.add('walku', framesFunc(1), 10, true);
     enemy.animations.add('walkl', framesFunc(2), 10, true);
     enemy.animations.add('walkr', framesFunc(3), 10, true);
-    enemy.animations.add('death', [24,25,26,27], 10, false);
+    enemy.animations.add('death', [24,25,26,27], 4, false);
 }
 
 function setupBullet(bullet) {
@@ -335,13 +337,14 @@ function moveEnemy(enemy) {
 function startBossFight() {
     bossFight = true;
     enemies.callAll('kill');
-    boss.revive();
-    boss.reset(140, 140, bossLives);
+    boss.reset(140, 140);
+    boss.animations.play('lol');
+    boss.revive(bossLives);
     moveBoss();
 }
 function moveBoss() {
-    var tween = game.add.tween(boss);
-    tween.to({y: height - 140}, 5000)
+    boss.Tween = game.add.tween(boss);
+    boss.Tween.to({y: height - 140}, 5000)
         .to({x: width - 140}, 8000)
         .to({y: 140}, 5000)
         .to({x:  140}, 8000)
@@ -372,13 +375,15 @@ function collisionBossBulletPly(pl, bullet) {
 function collisionEnemyPly(pl, enemy) {
     if (game.time.now > invincibilityTime && enemy.alive) {
         var live = lives.getFirstAlive();
-        if (live)
-            live.kill();
+        //if (live)
+            //live.kill();
 
         invincibilityTime = game.time.now + invincibilityWait;
 
         if (lives.countLiving() < 1) {
-            ply.kill();
+            ply.alive = false;
+            ply.body.velocity = {x:0,y:0};
+            ply.animations.play('death');
             stateText.text = "  Game over.\nClick to restart";
             stateText.visible = true;
 
@@ -388,10 +393,13 @@ function collisionEnemyPly(pl, enemy) {
 }
 function collisionBulletBoss(b, bullet) {
     bullet.kill();
-    b.damage(1);
+    b.health -= 1;
 
-    if (!b.alive) {
+    if (b.health < 1) {
 
+        b.alive = false;
+        b.Tween.stop();
+        b.animations.play('death');
         score += 1000 * lives.countLiving();
         scoreText.text = scoreStr + score;
         stateText.text = '    You win!\nClick to restart';
