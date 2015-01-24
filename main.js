@@ -63,7 +63,10 @@ function create() {
     // player
     ply = game.add.sprite(width/2, height/2, 'teddy');
     ply.anchor.setTo(.5, .5);
+    ply.facing = "left";
     game.physics.enable(ply, Phaser.Physics.ARCADE);
+    //ply.body.setSize(
+    ply.body.collideWorldBounds = true;
 
     // enemies
     enemies = game.add.group();
@@ -91,7 +94,7 @@ function create() {
 
     // buttons!
     cursors = game.input.keyboard.createCursorKeys();
-    movementKeys = {
+    wasd = {
         up: game.input.keyboard.addKey(Phaser.Keyboard.W),
         down:game.input.keyboard.addKey(Phaser.Keyboard.S),
         left:game.input.keyboard.addKey(Phaser.Keyboard.A),
@@ -111,13 +114,13 @@ function update() {
         ply.body.velocity.x -= ply.body.velocity.x * 0.9 * game.time.elapsed/100;
         ply.body.velocity.y -= ply.body.velocity.y * 0.9 * game.time.elapsed/100;
 
-        if (movementKeys.left.isDown)
+        if (wasd.left.isDown)
             ply.body.velocity.x -= 200;
-        if (movementKeys.right.isDown)
+        if (wasd.right.isDown)
             ply.body.velocity.x += 200;
-        if (movementKeys.down.isDown)
+        if (wasd.down.isDown)
             ply.body.velocity.y += 200;
-        if (movementKeys.up.isDown)
+        if (wasd.up.isDown)
             ply.body.velocity.y -= 200;
 
         //game.physics.arcade.overlap(bullets, enemies, collisionHandler, null, this);
