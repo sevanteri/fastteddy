@@ -31,10 +31,10 @@ var enemyWait = 1000;
 var enemyTime = 0;
 var enemyBullets;
 var killCount = 0;
+var killTarget = 1;
 
 var boss;
-var bossHealt = 0;
-var bossLives = 1;
+var bossLives = 25;
 var bossFight = false;
 
 var bullets;
@@ -320,8 +320,8 @@ function moveEnemy(enemy) {
 function startBossFight() {
     bossFight = true;
     enemies.callAll('kill');
-    bossHealth = bossLives;
     boss.revive();
+    boss.reset(140, 140, bossLives);
 }
 function collisionBulletEnemy(bullet, enemy) {
     bullet.kill();
@@ -331,7 +331,7 @@ function collisionBulletEnemy(bullet, enemy) {
     scoreText.text = scoreStr + score;
     killCount++;
 
-    if (killCount > 2) {
+    if (killCount >= killTarget) {
         startBossFight();
     }
 }
@@ -353,11 +353,10 @@ function collisionEnemyPly(enemy, pl) {
     }
 }
 function collisionBulletBoss(bullet, boss) {
-    bullet.kill();
-    bossHealth--;
+    //bullet.kill();
+    boss.damage(1);
 
-    if (bossHealth < 1) {
-        boss.kill();
+    if (boss.health < 1) {
 
         stateText.text = '    You win!\nClick to restart';
         stateText.visible = true;
