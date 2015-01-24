@@ -8,11 +8,10 @@ var game = new Phaser.Game(width, height, Phaser.AUTO, 'Fast Teddy', {
 });
 
 function preload() {
-    // game.load.spritesheet('teddy', 'teddy.png', 64, 64);
+    game.load.spritesheet('teddy', 'teddy.png', 64, 64, 30);
     //game.load.image('background', 'bg.png');
-    game.load.image('teddy', 'teddy.png');
     game.load.image('rabbit', 'rabbit.png');
-    game.load.image('bullet', 'rabbit.png');
+    game.load.image('bullet', 'bullet.png');
     game.load.image('enemyBullet', 'rabbit.png');
     game.load.image('explosion', 'rabbit.png');
 
@@ -20,22 +19,29 @@ function preload() {
 }
 
 var ply;
+var firingTimer = 0;
+var shooting = false;
+
 var enemies;
-var livingEnemies;
+var enemyWait = 1000;
+var enemyTime = 0;
+var enemyBullets;
+
 var bullets;
 var bulletTime = 0;
 var bulletWait = 200;
-var buttons;
-var fireButton;
+
+var cursors;
+var wasd;
+
 var explosions;
+
 var score = 0;
 var scoreStr = '';
 var scoreText;
+
 var lives;
-var enemyBullets;
-var firingTimer = 0;
 var stateText;
-var shooting = false;
 
 var font = {font: '34px Arial', fill: "#fff"};
 
@@ -74,11 +80,26 @@ function create() {
     game.physics.enable(ply, Phaser.Physics.ARCADE);
     ply.body.setSize(42, 56);
     ply.body.collideWorldBounds = true;
+    ply.animations.add('walkd', [6,7,8,9,10,11], 10, true);
+    ply.animations.add('walku', [12,13,14,15,16,17], 10, true);
+    ply.animations.add('walkl', [18,19,20,21,22,23], 10, true);
+    ply.animations.add('walkr', [24,25,26,27,28,29], 10, true);
+    ply.animations.add('standd', [0]);
+    ply.animations.add('standu', [1]);
+    ply.animations.add('standl', [2]);
+    ply.animations.add('standr', [3]);
+    ply.animations.play('standd');
 
     // enemies
     enemies = game.add.group();
     enemies.enableBody = true;
     enemies.physicsBodyType = Phaser.Physics.ARCADE;
+    game.physics.enable(enemies, Phaser.Physics.ARCADE);
+    enemies.setAll('body.maxAngular', 500);
+    enemies.setAll('body.angularDrag', 500);
+    enemies.createMultiple(10, 'rabbit');
+    enemies.setAll('anchor.x', .5);
+    enemies.setAll('anchor.y', .5);
 
     // score
     scoreStr = "Score: ";
@@ -107,7 +128,6 @@ function create() {
         left:game.input.keyboard.addKey(Phaser.Keyboard.A),
         right:game.input.keyboard.addKey(Phaser.Keyboard.D)
     }
-    //fireButtonLeft = game.input
 }
 function setupEnemy(enemy) {
     enemy.anchor.x = enemy.anchor.y = .5;
@@ -121,14 +141,30 @@ function update() {
         ply.body.velocity.x -= ply.body.velocity.x * 0.9 * game.time.elapsed/100;
         ply.body.velocity.y -= ply.body.velocity.y * 0.9 * game.time.elapsed/100;
 
-        if (wasd.left.isDown)
-            ply.body.velocity.x -= 200;
-        if (wasd.right.isDown)
-            ply.body.velocity.x += 200;
-        if (wasd.down.isDown)
-            ply.body.velocity.y += 200;
-        if (wasd.up.isDown)
-            ply.body.velocity.y -= 200;
+        if (wasd.left.isDown) {
+            ply.body.velocity.x -= 100;
+            ply.animations.play('walkl');
+        }
+        if (wasd.right.isDown) {
+            ply.body.velocity.x += 100;
+            ply.animations.play('walkr');
+        }
+        if (wasd.down.isDown) {
+            ply.body.velocity.y += 100;
+            ply.animations.play('walkd');
+        }
+        if (wasd.up.isDown) {
+            ply.body.velocity.y -= 100;
+            ply.animations.play('walku');
+        }
+        if (wasd.up.isUp &&
+            wasd.down.isUp &&
+            wasd.left.isUp &&
+            wasd.right.isUp)
+        {
+            var curA = ply.animations.currentAnim.name;
+            ply.animations.play('stand' + curA.substr(-1));
+        }
 
         shooting = (
                 cursors.up.isDown ||
@@ -144,35 +180,69 @@ function update() {
                 left: cursors.left.isDown,
                 right: cursors.right.isDown});
 
-        //game.physics.arcade.overlap(bullets, enemies, collisionHandler, null, this);
+        spawnEnemy();
+        enemies.forEach(moveEnemy, this);
+
+        game.physics.arcade.overlap(bullets, enemies, collisionHandler, null, this);
         //game.physics.arcade.overlap(enemyBullets, ply, enemyHitsPly, null, this);
     }
 }
-function render() {
-
-}
+function render() {}
 function shoot(dirs) {
     if (game.time.now > bulletTime) {
         bullet = bullets.getFirstExists(false);
         if (bullet) {
             bullet.reset(ply.x, ply.y);
-            bullet.body.velocity.y = dirs.up * -400 + dirs.down * 400;
-            bullet.body.velocity.x = dirs.left * -400 + dirs.right * 400;
+            bullet.body.velocity.y = dirs.up * -500 + dirs.down * 500;
+            bullet.body.velocity.x = dirs.left * -500 + dirs.right * 500;
 
             if (bullet.body.velocity.x == 0 && bullet.body.velocity.y == 0) {
                 bullet.kill();
                 return;
             }
 
-            //down = PI
-            //up = 0
-            //right PI/2
-            //left (3*PI)/2
             var PI = Math.PI;
-            bullet.rotation = (dirs.up * PI * 2) || (dirs.down * PI) ||
-                              (dirs.left * (3*PI)/2) || (dirs.right * PI/2);
+            bullet.rotation =
+                ((dirs.up && dirs.left) || (dirs.down && dirs.right)) * PI/4 ||
+                ((dirs.up && dirs.right) || (dirs.down && dirs.left)) * -PI/4 ||
+                (dirs.up || dirs.down) * PI/2;
 
             bulletTime = game.time.now + bulletWait;
         }
     }
+}
+var R = Math.random;
+function spawnEnemy() {
+    if (game.time.now > enemyTime) {
+        var enemy = enemies.getFirstExists(false);
+        if (enemy) {
+
+            var side = Math.floor(R() * 3 + 1);
+            var x = R() * (width-64 - 64) + 64;
+            var y = R() * (height-64 - 64) + 64;
+
+            if (side == 1)
+                enemy.reset(64, y);
+            else if (side == 2)
+                enemy.reset(x, 64);
+            else if (side == 3)
+                enemy.reset(width - 64, y);
+            else if (side == 4)
+                enemy.reset(x, height - 64);
+
+            enemyTime = game.time.now + enemyWait;
+        }
+    }
+}
+function moveEnemy(enemy) {
+    if (enemy.alive) {
+        game.physics.arcade.moveToObject(enemy, ply, 300);
+    }
+}
+function collisionHandler(bullet, enemy) {
+    bullet.kill();
+    enemy.kill();
+
+    score += 50;
+    scoreText.text = scoreStr + score;
 }
