@@ -9,7 +9,7 @@ var game = new Phaser.Game(width, height, Phaser.AUTO, 'Fast Teddy', {
 
 function preload() {
     game.load.spritesheet('teddy', 'teddy.png', 64, 64, 30);
-    //game.load.image('background', 'bg.png');
+    game.load.image('background', 'bg.png');
     game.load.image('rabbit', 'rabbit.png');
     game.load.image('bullet', 'bullet.png');
     game.load.image('enemyBullet', 'rabbit.png');
@@ -19,8 +19,9 @@ function preload() {
 }
 
 var ply;
-var firingTimer = 0;
 var shooting = false;
+var invincibilityWait = 2000;
+var invincibilityTime = 0;
 
 var enemies;
 var enemyWait = 1000;
@@ -29,7 +30,7 @@ var enemyBullets;
 
 var bullets;
 var bulletTime = 0;
-var bulletWait = 200;
+var bulletWait = 400;
 
 var cursors;
 var wasd;
@@ -42,6 +43,7 @@ var scoreText;
 
 var lives;
 var stateText;
+var running = true;
 
 var font = {font: '34px Arial', fill: "#fff"};
 
@@ -51,7 +53,7 @@ function create() {
     music = game.add.audio('music');
     //music.play();
 
-    //background_image = game.add.tileSprite(0,0,width,height, 'background');
+    background_image = game.add.tileSprite(0,0,width,height, 'background');
 
     // bullets
     bullets = game.add.group();
@@ -78,7 +80,7 @@ function create() {
     ply.anchor.setTo(.5, .5);
     ply.facing = "left";
     game.physics.enable(ply, Phaser.Physics.ARCADE);
-    ply.body.setSize(42, 56);
+    ply.body.setSize(38,59);
     ply.body.collideWorldBounds = true;
     ply.animations.add('walkd', [6,7,8,9,10,11], 10, true);
     ply.animations.add('walku', [12,13,14,15,16,17], 10, true);
@@ -104,10 +106,21 @@ function create() {
     // score
     scoreStr = "Score: ";
     scoreText = game.add.text(10, 10, scoreStr + score, font);
+    enemyTime = game.time.now + enemyWait;
 
     // lives
     lives = game.add.group();
     game.add.text(width - 100 - 32, 10, 'Lives: ', font);
+
+    // win lose text
+    stateText = game.add.text(
+            game.world.centerX,
+            game.world.centerY,
+            ' ',
+            {font: '84px Arial', fill: '#FFF'}
+    );
+    stateText.anchor.setTo(0.5,0.5);
+    stateText.visible = false;
 
     for (var i=0;i<3;i++) {
         var ted = lives.create(width - 100 + (32*i), 64, 'teddy');
@@ -166,6 +179,8 @@ function update() {
             ply.animations.play('stand' + curA.substr(-1));
         }
 
+        ply.alpha = (game.time.now < invincibilityTime) ? 0.6 : 1;
+
         shooting = (
                 cursors.up.isDown ||
                 cursors.down.isDown ||
@@ -184,7 +199,7 @@ function update() {
         enemies.forEach(moveEnemy, this);
 
         game.physics.arcade.overlap(bullets, enemies, collisionHandler, null, this);
-        //game.physics.arcade.overlap(enemyBullets, ply, enemyHitsPly, null, this);
+        game.physics.arcade.overlap(enemies, ply, enemyHitsPly, null, this);
     }
 }
 function render() {}
@@ -245,4 +260,30 @@ function collisionHandler(bullet, enemy) {
 
     score += 50;
     scoreText.text = scoreStr + score;
+}
+function enemyHitsPly(enemy, pl) {
+    if (game.time.now > invincibilityTime) {
+        var live = lives.getFirstAlive();
+        if (live)
+            live.kill();
+
+        invincibilityTime = game.time.now + invincibilityWait;
+
+        if (lives.countLiving() < 1) {
+            ply.kill();
+            stateText.text = "  Game over.\nClick to restart";
+            stateText.visible = true;
+            score = 0;
+            scoreText.text = scoreStr + score;
+
+            game.input.onTap.addOnce(restart, this);
+        }
+    }
+}
+function restart() {
+    lives.callAll('revive');
+    enemies.callAll('kill');
+    ply.revive();
+    stateText.visible = false;
+    enemyTime = game.time.now + enemyWait;
 }
