@@ -375,8 +375,8 @@ function collisionBossBulletPly(pl, bullet) {
 function collisionEnemyPly(pl, enemy) {
     if (game.time.now > invincibilityTime && enemy.alive) {
         var live = lives.getFirstAlive();
-        //if (live)
-            //live.kill();
+        if (live)
+            live.kill();
 
         invincibilityTime = game.time.now + invincibilityWait;
 
