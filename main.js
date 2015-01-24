@@ -10,6 +10,7 @@ var game = new Phaser.Game(width, height, Phaser.AUTO, 'Fast Teddy', {
 function preload() {
     game.load.spritesheet('teddy', 'teddy.png', 64, 64, 30);
     game.load.spritesheet('rabbit', 'rabbit.png', 64, 64, 24);
+    game.load.spritesheet('boss', 'boss.png', 128, 128, 4);
     game.load.image('background', 'bg.png');
     game.load.image('bullet', 'bullet.png');
     game.load.image('enemyBullet', 'rabbit.png');
@@ -29,6 +30,12 @@ var enemies;
 var enemyWait = 1000;
 var enemyTime = 0;
 var enemyBullets;
+var killCount = 0;
+var killTarget = 1;
+
+var boss;
+var bossLives = 25;
+var bossFight = false;
 
 var bullets;
 var bulletTime = 0;
@@ -65,10 +72,7 @@ function create() {
     bullets.enableBody = true;
     bullets.physicsBodyType = Phaser.Physics.ARCADE;
     bullets.createMultiple(30, 'bullet');
-    bullets.setAll('anchor.x', 0.5);
-    bullets.setAll('anchor.y', 1);
-    bullets.setAll('outOfBoundsKill', true);
-    bullets.setAll('checkWorldBounds', true);
+    bullets.forEach(setupBullet, this);
 
     // enemy bullets
     enemyBullets = game.add.group();
@@ -83,7 +87,6 @@ function create() {
     // player
     ply = game.add.sprite(width/2, height/2, 'teddy');
     ply.anchor.setTo(.5, .5);
-    ply.facing = "left";
     game.physics.enable(ply, Phaser.Physics.ARCADE);
     ply.body.setSize(38,59);
     ply.body.collideWorldBounds = true;
@@ -96,6 +99,16 @@ function create() {
     ply.animations.add('standl', [2]);
     ply.animations.add('standr', [3]);
     ply.animations.play('standd');
+
+    // boss
+    boss = game.add.sprite(140, 140, 'boss');
+    boss.anchor.setTo(.5,.5);
+    game.physics.enable(boss, Phaser.Physics.ARCADE);
+    boss.animations.add('lol');
+    boss.animations.play('lol', 2, true);
+    boss.body.collideWorldBounds = true;
+    boss.body.setSize(64,64);
+    boss.kill();
 
     // enemies
     enemies = game.add.group();
@@ -154,6 +167,12 @@ function setupEnemy(enemy) {
     enemy.animations.add('walkr', framesFunc(3), 10, true);
 }
 
+function setupBullet(bullet) {
+    bullet.anchor.setTo(.5,1);
+    bullet.outOfBoundsKill = true;
+    bullet.checkWorlBounds = true;
+}
+
 function update() {
 
     if(ply.alive) {
@@ -209,11 +228,17 @@ function update() {
                 left: cursors.left.isDown,
                 right: cursors.right.isDown});
 
-        spawnEnemy();
-        enemies.forEach(moveEnemy, this);
+        if (!bossFight) {
+            spawnEnemy();
+            enemies.forEach(moveEnemy, this);
+            game.physics.arcade.overlap(enemies, ply, collisionEnemyPly, null, this);
+            game.physics.arcade.overlap(bullets, enemies, collisionBulletEnemy, null, this);
+        } else {
 
-        game.physics.arcade.overlap(bullets, enemies, collisionHandler, null, this);
-        game.physics.arcade.overlap(enemies, ply, enemyHitsPly, null, this);
+            game.physics.arcade.overlap(bullets, boss, collisionBulletBoss, null, this);
+            game.physics.arcade.overlap(boss, ply, collisionEnemyPly, null, this);
+        }
+
     }
 }
 function render() {}
@@ -292,14 +317,25 @@ function moveEnemy(enemy) {
 
     }
 }
-function collisionHandler(bullet, enemy) {
+function startBossFight() {
+    bossFight = true;
+    enemies.callAll('kill');
+    boss.revive();
+    boss.reset(140, 140, bossLives);
+}
+function collisionBulletEnemy(bullet, enemy) {
     bullet.kill();
     enemy.kill();
 
     score += 50 * lives.countLiving();
     scoreText.text = scoreStr + score;
+    killCount++;
+
+    if (killCount >= killTarget) {
+        startBossFight();
+    }
 }
-function enemyHitsPly(enemy, pl) {
+function collisionEnemyPly(enemy, pl) {
     if (game.time.now > invincibilityTime) {
         var live = lives.getFirstAlive();
         if (live)
@@ -316,11 +352,24 @@ function enemyHitsPly(enemy, pl) {
         }
     }
 }
+function collisionBulletBoss(bullet, boss) {
+    //bullet.kill();
+    boss.damage(1);
+
+    if (boss.health < 1) {
+
+        stateText.text = '    You win!\nClick to restart';
+        stateText.visible = true;
+        game.input.onTap.addOnce(restart, this);
+    }
+}
 function restart() {
     lives.callAll('revive');
     enemies.callAll('kill');
     ply.revive();
     score = 0;
+    killCount = 0;
+    bossFight = 0;
     scoreText.text = scoreStr + score;
     stateText.visible = false;
     enemyTime = game.time.now + enemyWait;
