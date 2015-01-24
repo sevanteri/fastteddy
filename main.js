@@ -15,6 +15,8 @@ function preload() {
     game.load.image('bullet', 'rabbit.png');
     game.load.image('enemyBullet', 'rabbit.png');
     game.load.image('explosion', 'rabbit.png');
+
+    game.load.audio('music', 'music.ogg');
 }
 
 var ply;
@@ -22,6 +24,7 @@ var enemies;
 var livingEnemies;
 var bullets;
 var bulletTime = 0;
+var bulletWait = 200;
 var buttons;
 var fireButton;
 var explosions;
@@ -39,8 +42,11 @@ var font = {font: '34px Arial', fill: "#fff"};
 function create() {
     game.physics.startSystem(Phaser.Physics.ARCADE);
 
+    music = game.add.audio('music');
+    //music.play();
+
     //background_image = game.add.tileSprite(0,0,width,height, 'background');
-    //
+
     // bullets
     bullets = game.add.group();
     bullets.enableBody = true;
@@ -153,7 +159,20 @@ function shoot(dirs) {
             bullet.body.velocity.y = dirs.up * -400 + dirs.down * 400;
             bullet.body.velocity.x = dirs.left * -400 + dirs.right * 400;
 
-            bulletTime = game.time.now + 200;
+            if (bullet.body.velocity.x == 0 && bullet.body.velocity.y == 0) {
+                bullet.kill();
+                return;
+            }
+
+            //down = PI
+            //up = 0
+            //right PI/2
+            //left (3*PI)/2
+            var PI = Math.PI;
+            bullet.rotation = (dirs.up * PI * 2) || (dirs.down * PI) ||
+                              (dirs.left * (3*PI)/2) || (dirs.right * PI/2);
+
+            bulletTime = game.time.now + bulletWait;
         }
     }
 }
