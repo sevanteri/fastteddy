@@ -9,7 +9,7 @@ var game = new Phaser.Game(width, height, Phaser.AUTO, 'Fast Teddy', {
 
 function preload() {
     game.load.spritesheet('teddy', 'teddy.png', 64, 64, 30);
-    game.load.spritesheet('rabbit', 'rabbit.png', 64, 64, 24);
+    game.load.spritesheet('rabbit', 'rabbit.png', 64, 64, 28);
     game.load.spritesheet('boss', 'boss.png', 128, 128, 4);
     game.load.image('background', 'bg.png');
     game.load.image('bullet', 'bullet.png');
@@ -27,15 +27,18 @@ var invincibilityTime = 0;
 var movingSpeed = 100;
 
 var enemies;
+var deadEnemies;
 var enemyWait = 1000;
 var enemyTime = 0;
 var enemyBullets;
 var killCount = 0;
-var killTarget = 1;
+var killTarget = 20;
 
 var boss;
 var bossLives = 25;
 var bossFight = false;
+var bossShootTime = 0;
+var bossShootWait = 20;
 
 var bullets;
 var bulletTime = 0;
@@ -66,6 +69,7 @@ function create() {
     music.play('', 0, 1, true);
 
     background_image = game.add.tileSprite(0,0,width,height, 'background');
+    deadEnemies = game.add.group();
 
     // bullets
     bullets = game.add.group();
@@ -84,6 +88,18 @@ function create() {
     enemyBullets.setAll('outOfBoundsKill', true);
     enemyBullets.setAll('checkWorldBounds', true);
 
+
+    // boss
+    boss = game.add.sprite(140, 140, 'boss');
+    boss.anchor.setTo(.5,.5);
+    game.physics.enable(boss, Phaser.Physics.ARCADE);
+    boss.animations.add('lol');
+    boss.animations.play('lol', 2, true);
+    boss.body.collideWorldBounds = true;
+    boss.body.setSize(64,64);
+    boss.kill();
+
+
     // player
     ply = game.add.sprite(width/2, height/2, 'teddy');
     ply.anchor.setTo(.5, .5);
@@ -100,22 +116,12 @@ function create() {
     ply.animations.add('standr', [3]);
     ply.animations.play('standd');
 
-    // boss
-    boss = game.add.sprite(140, 140, 'boss');
-    boss.anchor.setTo(.5,.5);
-    game.physics.enable(boss, Phaser.Physics.ARCADE);
-    boss.animations.add('lol');
-    boss.animations.play('lol', 2, true);
-    boss.body.collideWorldBounds = true;
-    boss.body.setSize(64,64);
-    boss.kill();
-
     // enemies
     enemies = game.add.group();
     enemies.enableBody = true;
     enemies.physicsBodyType = Phaser.Physics.ARCADE;
     game.physics.enable(enemies, Phaser.Physics.ARCADE);
-    enemies.createMultiple(10, 'rabbit');
+    enemies.createMultiple(killTarget, 'rabbit');
     enemies.forEach(setupEnemy, this);
 
     // score
@@ -143,10 +149,6 @@ function create() {
         ted.alpha = .4;
     }
 
-    // explosions
-    //explosions = game.add.group();
-    //explosions.createMultiple(15, 'explosion');
-
     // buttons!
     cursors = game.input.keyboard.createCursorKeys();
     wasd = {
@@ -165,12 +167,13 @@ function setupEnemy(enemy) {
     enemy.animations.add('walku', framesFunc(1), 10, true);
     enemy.animations.add('walkl', framesFunc(2), 10, true);
     enemy.animations.add('walkr', framesFunc(3), 10, true);
+    enemy.animations.add('death', [24,25,26,27], 10, false);
 }
 
 function setupBullet(bullet) {
     bullet.anchor.setTo(.5,1);
     bullet.outOfBoundsKill = true;
-    bullet.checkWorlBounds = true;
+    bullet.checkWorldBounds = true;
 }
 
 function update() {
@@ -234,9 +237,10 @@ function update() {
             game.physics.arcade.overlap(enemies, ply, collisionEnemyPly, null, this);
             game.physics.arcade.overlap(bullets, enemies, collisionBulletEnemy, null, this);
         } else {
-
+            game.physics.arcade.overlap(enemyBullets, ply, collisionBossBulletPly, null, this);
             game.physics.arcade.overlap(bullets, boss, collisionBulletBoss, null, this);
             game.physics.arcade.overlap(boss, ply, collisionEnemyPly, null, this);
+            bossShoot();
         }
 
     }
@@ -272,6 +276,17 @@ function shoot(dirs) {
                 (dirs.up || dirs.down) * PI/2;
 
             bulletTime = game.time.now + bulletWait;
+        }
+    }
+}
+function bossShoot() {
+    if (boss.alive && bossFight && game.time.now > bossShootTime) {
+        var bullet = enemyBullets.getFirstExists(false);
+        if (bullet) {
+            bullet.reset(boss.x, boss.y);
+            game.physics.arcade.moveToObject(bullet, ply, 300);
+
+            bossShootTime = game.time.now + bossShootWait;
         }
     }
 }
@@ -334,19 +349,28 @@ function moveBoss() {
         .start();
 }
 function collisionBulletEnemy(bullet, enemy) {
-    bullet.kill();
-    enemy.kill();
+    if (enemy.alive) {
+        bullet.kill();
+        deadEnemies.add(enemy);
+        enemy.alive = false;
+        enemy.animations.play('death');
+        enemy.body.velocity.x = enemy.body.velocity.y = 0;
 
-    score += 50 * lives.countLiving();
-    scoreText.text = scoreStr + score;
-    killCount++;
+        score += 50 * lives.countLiving();
+        scoreText.text = scoreStr + score;
+        killCount++;
 
-    if (killCount >= killTarget) {
-        startBossFight();
+        if (killCount >= killTarget) {
+            startBossFight();
+        }
     }
 }
-function collisionEnemyPly(enemy, pl) {
-    if (game.time.now > invincibilityTime) {
+function collisionBossBulletPly(pl, bullet) {
+    collisionEnemyPly(bullet, pl);
+    bullet.kill();
+}
+function collisionEnemyPly(pl, enemy) {
+    if (game.time.now > invincibilityTime && enemy.alive) {
         var live = lives.getFirstAlive();
         if (live)
             live.kill();
@@ -368,6 +392,8 @@ function collisionBulletBoss(b, bullet) {
 
     if (!b.alive) {
 
+        score += 1000 * lives.countLiving();
+        scoreText.text = scoreStr + score;
         stateText.text = '    You win!\nClick to restart';
         stateText.visible = true;
         game.input.onTap.addOnce(restart, this);
@@ -375,11 +401,20 @@ function collisionBulletBoss(b, bullet) {
 }
 function restart() {
     lives.callAll('revive');
+    console.log(deadEnemies.length);
+
+    while (deadEnemies.children.length > 0) {
+        enemies.addMultiple(deadEnemies.children);
+    }
+
+    console.log(deadEnemies.length);
+
     enemies.callAll('kill');
     ply.revive();
+    boss.kill();
     score = 0;
     killCount = 0;
-    bossFight = 0;
+    bossFight = false;
     scoreText.text = scoreStr + score;
     stateText.visible = false;
     enemyTime = game.time.now + enemyWait;
