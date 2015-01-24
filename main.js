@@ -9,8 +9,8 @@ var game = new Phaser.Game(width, height, Phaser.AUTO, 'Fast Teddy', {
 
 function preload() {
     game.load.spritesheet('teddy', 'teddy.png', 64, 64, 30);
+    game.load.spritesheet('rabbit', 'rabbit.png', 64, 64, 24);
     game.load.image('background', 'bg.png');
-    game.load.image('rabbit', 'rabbit.png');
     game.load.image('bullet', 'bullet.png');
     game.load.image('enemyBullet', 'rabbit.png');
     game.load.image('explosion', 'rabbit.png');
@@ -20,8 +20,10 @@ function preload() {
 
 var ply;
 var shooting = false;
+var moving = false;
 var invincibilityWait = 2000;
 var invincibilityTime = 0;
+var movingSpeed = 100;
 
 var enemies;
 var enemyWait = 1000;
@@ -47,11 +49,14 @@ var running = true;
 
 var font = {font: '34px Arial', fill: "#fff"};
 
+var frames = [0,1,2,3,4,5];
+var framesFunc = function(r) { return frames.map(function(c) { return c + 6 * r }) };
+
 function create() {
     game.physics.startSystem(Phaser.Physics.ARCADE);
 
     music = game.add.audio('music');
-    //music.play();
+    music.play('', 0, 1, true);
 
     background_image = game.add.tileSprite(0,0,width,height, 'background');
 
@@ -82,10 +87,10 @@ function create() {
     game.physics.enable(ply, Phaser.Physics.ARCADE);
     ply.body.setSize(38,59);
     ply.body.collideWorldBounds = true;
-    ply.animations.add('walkd', [6,7,8,9,10,11], 10, true);
-    ply.animations.add('walku', [12,13,14,15,16,17], 10, true);
-    ply.animations.add('walkl', [18,19,20,21,22,23], 10, true);
-    ply.animations.add('walkr', [24,25,26,27,28,29], 10, true);
+    ply.animations.add('walkd', framesFunc(1), 10, true);
+    ply.animations.add('walku', framesFunc(2), 10, true);
+    ply.animations.add('walkl', framesFunc(3), 10, true);
+    ply.animations.add('walkr', framesFunc(4), 10, true);
     ply.animations.add('standd', [0]);
     ply.animations.add('standu', [1]);
     ply.animations.add('standl', [2]);
@@ -97,11 +102,8 @@ function create() {
     enemies.enableBody = true;
     enemies.physicsBodyType = Phaser.Physics.ARCADE;
     game.physics.enable(enemies, Phaser.Physics.ARCADE);
-    enemies.setAll('body.maxAngular', 500);
-    enemies.setAll('body.angularDrag', 500);
     enemies.createMultiple(10, 'rabbit');
-    enemies.setAll('anchor.x', .5);
-    enemies.setAll('anchor.y', .5);
+    enemies.forEach(setupEnemy, this);
 
     // score
     scoreStr = "Score: ";
@@ -129,9 +131,8 @@ function create() {
     }
 
     // explosions
-    explosions = game.add.group();
-    explosions.createMultiple(15, 'explosion');
-    explosions.forEach(setupEnemy, this);
+    //explosions = game.add.group();
+    //explosions.createMultiple(15, 'explosion');
 
     // buttons!
     cursors = game.input.keyboard.createCursorKeys();
@@ -145,48 +146,61 @@ function create() {
 function setupEnemy(enemy) {
     enemy.anchor.x = enemy.anchor.y = .5;
     enemy.animations.add('explosion');
+    enemy.anchor.setTo(.5,.5);
+    enemy.body.setSize(38,59);
+    enemy.animations.add('walkd', framesFunc(0), 10, true);
+    enemy.animations.add('walku', framesFunc(1), 10, true);
+    enemy.animations.add('walkl', framesFunc(2), 10, true);
+    enemy.animations.add('walkr', framesFunc(3), 10, true);
 }
 
 function update() {
 
     if(ply.alive) {
         //ply.body.velocity.setTo(0, 0);
-        ply.body.velocity.x -= ply.body.velocity.x * 0.9 * game.time.elapsed/100;
-        ply.body.velocity.y -= ply.body.velocity.y * 0.9 * game.time.elapsed/100;
+        ply.body.velocity.x -= (ply.body.velocity.x * 0.9 * game.time.elapsed/100);
+        ply.body.velocity.y -= (ply.body.velocity.y * 0.9 * game.time.elapsed/100);
+        //ply.body.velocity.x = Math.round(ply.body.velocity.x);
+        //ply.body.velocity.y = Math.round(ply.body.velocity.y);
 
-        if (wasd.left.isDown) {
-            ply.body.velocity.x -= 100;
-            ply.animations.play('walkl');
-        }
-        if (wasd.right.isDown) {
-            ply.body.velocity.x += 100;
-            ply.animations.play('walkr');
-        }
-        if (wasd.down.isDown) {
-            ply.body.velocity.y += 100;
-            ply.animations.play('walkd');
-        }
-        if (wasd.up.isDown) {
-            ply.body.velocity.y -= 100;
-            ply.animations.play('walku');
-        }
-        if (wasd.up.isUp &&
-            wasd.down.isUp &&
-            wasd.left.isUp &&
-            wasd.right.isUp)
-        {
-            var curA = ply.animations.currentAnim.name;
-            ply.animations.play('stand' + curA.substr(-1));
-        }
-
-        ply.alpha = (game.time.now < invincibilityTime) ? 0.6 : 1;
-
+        moving = (wasd.up.isUp ||
+                wasd.down.isUp ||
+                wasd.left.isUp ||
+                wasd.right.isUp);
         shooting = (
                 cursors.up.isDown ||
                 cursors.down.isDown ||
                 cursors.left.isDown ||
                 cursors.right.isDown
                 )
+
+        if (wasd.left.isDown) {
+            ply.body.velocity.x -= movingSpeed;
+            if (!shooting && !wasd.up.isDown && !wasd.down.isDown)
+                ply.animations.play('walkl');
+        }
+        if (wasd.right.isDown) {
+            ply.body.velocity.x += movingSpeed;
+            if (!shooting && !wasd.up.isDown && !wasd.down.isDown)
+                ply.animations.play('walkr');
+        }
+        if (wasd.down.isDown) {
+            ply.body.velocity.y += movingSpeed;
+            if (!shooting)
+                ply.animations.play('walkd');
+        }
+        if (wasd.up.isDown) {
+            ply.body.velocity.y -= movingSpeed;
+            if (!shooting)
+                ply.animations.play('walku');
+        }
+
+        if (!moving) {
+            var curA = ply.animations.currentAnim.name;
+            ply.animations.play('stand' + curA.substr(-1));
+        }
+
+        ply.alpha = (game.time.now < invincibilityTime) ? 0.6 : 1;
 
         if (shooting)
             shoot({
@@ -207,6 +221,16 @@ function shoot(dirs) {
     if (game.time.now > bulletTime) {
         bullet = bullets.getFirstExists(false);
         if (bullet) {
+            var animStr = moving ? "walk" : "stand";
+            if (dirs.up)
+                ply.animations.play(animStr + 'u');
+            else if (dirs.down)
+                ply.animations.play(animStr + 'd');
+            else if (dirs.left)
+                ply.animations.play(animStr + 'l');
+            else if (dirs.right)
+                ply.animations.play(animStr + 'r');
+
             bullet.reset(ply.x, ply.y);
             bullet.body.velocity.y = dirs.up * -500 + dirs.down * 500;
             bullet.body.velocity.x = dirs.left * -500 + dirs.right * 500;
@@ -233,17 +257,17 @@ function spawnEnemy() {
         if (enemy) {
 
             var side = Math.floor(R() * 3 + 1);
-            var x = R() * (width-64 - 64) + 64;
-            var y = R() * (height-64 - 64) + 64;
+            var x = R() * (width-32 - 32) + 32;
+            var y = R() * (height-32 - 32) + 32;
 
             if (side == 1)
-                enemy.reset(64, y);
+                enemy.reset(32, y);
             else if (side == 2)
-                enemy.reset(x, 64);
+                enemy.reset(x, 32);
             else if (side == 3)
-                enemy.reset(width - 64, y);
+                enemy.reset(width - 32, y);
             else if (side == 4)
-                enemy.reset(x, height - 64);
+                enemy.reset(x, height - 32);
 
             enemyTime = game.time.now + enemyWait;
         }
@@ -252,13 +276,27 @@ function spawnEnemy() {
 function moveEnemy(enemy) {
     if (enemy.alive) {
         game.physics.arcade.moveToObject(enemy, ply, 300);
+
+        if (enemy.body.velocity.y > 0 &&
+                 Math.abs(enemy.body.velocity.y) > Math.abs(enemy.body.velocity.x))
+            enemy.animations.play('walkd');
+        else if (enemy.body.velocity.y < 0 &&
+                 Math.abs(enemy.body.velocity.y) > Math.abs(enemy.body.velocity.x))
+            enemy.animations.play('walku');
+        else if (enemy.body.velocity.x > 0 &&
+                 Math.abs(enemy.body.velocity.y) < Math.abs(enemy.body.velocity.x))
+            enemy.animations.play('walkr');
+        else if (enemy.body.velocity.x < 0 &&
+                 Math.abs(enemy.body.velocity.y) < Math.abs(enemy.body.velocity.x))
+            enemy.animations.play('walkl');
+
     }
 }
 function collisionHandler(bullet, enemy) {
     bullet.kill();
     enemy.kill();
 
-    score += 50;
+    score += 50 * lives.countLiving();
     scoreText.text = scoreStr + score;
 }
 function enemyHitsPly(enemy, pl) {
@@ -273,8 +311,6 @@ function enemyHitsPly(enemy, pl) {
             ply.kill();
             stateText.text = "  Game over.\nClick to restart";
             stateText.visible = true;
-            score = 0;
-            scoreText.text = scoreStr + score;
 
             game.input.onTap.addOnce(restart, this);
         }
@@ -284,6 +320,8 @@ function restart() {
     lives.callAll('revive');
     enemies.callAll('kill');
     ply.revive();
+    score = 0;
+    scoreText.text = scoreStr + score;
     stateText.visible = false;
     enemyTime = game.time.now + enemyWait;
 }
