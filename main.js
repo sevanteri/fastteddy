@@ -244,7 +244,7 @@ function update() {
 function render() {}
 function shoot(dirs) {
     if (game.time.now > bulletTime) {
-        bullet = bullets.getFirstExists(false);
+        var bullet = bullets.getFirstExists(false);
         if (bullet) {
             var animStr = moving ? "walk" : "stand";
             if (dirs.up)
@@ -352,11 +352,11 @@ function collisionEnemyPly(enemy, pl) {
         }
     }
 }
-function collisionBulletBoss(bullet, boss) {
-    //bullet.kill();
-    boss.damage(1);
+function collisionBulletBoss(b, bullet) {
+    bullet.kill();
+    b.damage(1);
 
-    if (boss.health < 1) {
+    if (!b.alive) {
 
         stateText.text = '    You win!\nClick to restart';
         stateText.visible = true;
