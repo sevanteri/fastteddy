@@ -32,6 +32,7 @@ var lives;
 var enemyBullets;
 var firingTimer = 0;
 var stateText;
+var shooting = false;
 
 var font = {font: '34px Arial', fill: "#fff"};
 
@@ -65,7 +66,7 @@ function create() {
     ply.anchor.setTo(.5, .5);
     ply.facing = "left";
     game.physics.enable(ply, Phaser.Physics.ARCADE);
-    //ply.body.setSize(
+    ply.body.setSize(42, 56);
     ply.body.collideWorldBounds = true;
 
     // enemies
@@ -123,10 +124,36 @@ function update() {
         if (wasd.up.isDown)
             ply.body.velocity.y -= 200;
 
+        shooting = (
+                cursors.up.isDown ||
+                cursors.down.isDown ||
+                cursors.left.isDown ||
+                cursors.right.isDown
+                )
+
+        if (shooting)
+            shoot({
+                up: cursors.up.isDown,
+                down: cursors.down.isDown,
+                left: cursors.left.isDown,
+                right: cursors.right.isDown});
+
         //game.physics.arcade.overlap(bullets, enemies, collisionHandler, null, this);
         //game.physics.arcade.overlap(enemyBullets, ply, enemyHitsPly, null, this);
     }
 }
 function render() {
 
+}
+function shoot(dirs) {
+    if (game.time.now > bulletTime) {
+        bullet = bullets.getFirstExists(false);
+        if (bullet) {
+            bullet.reset(ply.x, ply.y);
+            bullet.body.velocity.y = dirs.up * -400 + dirs.down * 400;
+            bullet.body.velocity.x = dirs.left * -400 + dirs.right * 400;
+
+            bulletTime = game.time.now + 200;
+        }
+    }
 }
