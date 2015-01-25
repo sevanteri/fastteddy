@@ -378,7 +378,7 @@ function startBossFight() {
     boss.animations.play('lol');
     boss.revive(bossLives);
     bossHp.visible = true;
-    healthBar.width = b.health/bossLives;
+    healthBar.width = boss.health/bossLives;
     moveBoss();
 }
 function moveBoss() {
