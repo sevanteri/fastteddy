@@ -15,6 +15,7 @@ function preload() {
     game.load.image('bullet', 'bullet.png');
     game.load.image('enemyBullet', 'boss_spruit.png');
     game.load.image('explosion', 'rabbit.png');
+    game.load.image('healthbar', 'heppabaari.png');
 
     game.load.audio('music', 'music.ogg');
 }
@@ -44,6 +45,10 @@ var bossShootWait = 20;
 var startBossBulletSpeed = 300;
 var bossBulletSpeed = startBossBulletSpeed;
 var bossLevel = 0;
+
+var bossHp;
+var healthBarBG;
+var healthBar;
 
 var bullets;
 var bulletTime = 0;
@@ -139,6 +144,33 @@ function create() {
     // lives
     lives = game.add.group();
     game.add.text(width - 100 - 32, 10, 'Lives: ', font);
+
+    // boss health bar
+    bossHp = game.add.group();
+    var hpbg = game.add.graphics(width/2 - 3*32, 23 + 2);
+    hpbg.beginFill(0xCFDFD0);
+    hpbg.lineStyle(1, 0x000000, 1);
+    hpbg.moveTo(0, 0);
+    hpbg.lineTo(6*32, 0);
+    hpbg.lineTo(6*32, 16);
+    hpbg.lineTo(0, 16);
+    hpbg.endFill();
+    bossHp.add(hpbg);
+
+    healthBar = game.add.graphics(width/2 - 3*32, 23 + 2);
+    healthBar.beginFill(0xA61405);
+    healthBar.lineStyle(1, 0xA21203, 1);
+    healthBar.moveTo(0, 0);
+    healthBar.lineTo(6*32, 0);
+    healthBar.lineTo(6*32, 16);
+    healthBar.lineTo(0, 16);
+    healthBar.endFill();
+    bossHp.add(healthBar);
+
+    healthBarBG = game.add.sprite(width/2, 2, 'healthbar');
+    healthBarBG.anchor.setTo(0.5, 0);
+    bossHp.add(healthBarBG);
+    bossHp.visible = false;
 
     // win lose text
     stateText = game.add.text(
@@ -345,6 +377,8 @@ function startBossFight() {
     boss.reset(140, 140);
     boss.animations.play('lol');
     boss.revive(bossLives);
+    bossHp.visible = true;
+    healthBar.width = b.health/bossLives;
     moveBoss();
 }
 function moveBoss() {
@@ -400,11 +434,13 @@ function collisionBulletBoss(b, bullet) {
     bullet.kill();
     b.health -= 1;
 
+    healthBar.width = b.health/bossLives;
+
     if (b.health < 1) {
 
         b.alive = false;
-        b.Tween.stop();
         b.animations.play('death');
+        b.Tween.stop();
         score += 1000 * lives.countLiving();
         scoreText.text = scoreStr + score;
         stateText.text = '     You win!\n      Click to\ncontinue killing';
@@ -434,6 +470,7 @@ function restart() {
     scoreText.text = scoreStr + score;
     stateText.visible = false;
     enemyTime = game.time.now + enemyWait;
+    bossHp.visible = false;
 
 }
 function replay() {
@@ -452,4 +489,5 @@ function replay() {
     bossLives += 5;
     bossBulletSpeed *= 1.1;
     bossLevel++;
+    bossHp.visible = false;
 }
