@@ -109,6 +109,7 @@ function create() {
     boss.body.collideWorldBounds = true;
     boss.body.setSize(64,64);
     boss.kill();
+    boss.Tween = game.add.tween(boss);
 
 
     // player
@@ -278,8 +279,10 @@ function update() {
         } else {
             game.physics.arcade.overlap(enemyBullets, ply, collisionBossBulletPly, null, this);
             game.physics.arcade.overlap(bullets, boss, collisionBulletBoss, null, this);
-            game.physics.arcade.overlap(boss, ply, collisionEnemyPly, null, this);
+            game.physics.arcade.overlap(ply, boss, collisionEnemyPly, null, this);
             bossShoot();
+            if (!boss.alive)
+                boss.Tween.stop();
         }
 
     }
@@ -377,11 +380,12 @@ function startBossFight() {
     boss.reset(140, 140);
     boss.animations.play('lol');
     boss.revive(bossLives);
+    boss.alive = true;
     bossHp.visible = true;
-    healthBar.width = boss.health/bossLives;
     moveBoss();
 }
 function moveBoss() {
+    boss.Tween.stop();
     boss.Tween = game.add.tween(boss);
     boss.Tween.to({y: height - 140}, 5000 - bossLevel*200)
         .to({x: width - 140}, 8000 - bossLevel*200)
@@ -408,7 +412,7 @@ function collisionBulletEnemy(bullet, enemy) {
     }
 }
 function collisionBossBulletPly(pl, bullet) {
-    collisionEnemyPly(bullet, pl);
+    collisionEnemyPly(pl, bullet);
     bullet.kill();
 }
 function collisionEnemyPly(pl, enemy) {
@@ -431,21 +435,23 @@ function collisionEnemyPly(pl, enemy) {
     }
 }
 function collisionBulletBoss(b, bullet) {
-    bullet.kill();
-    b.health -= 1;
+    if (boss.alive) {
+        bullet.kill();
+        b.health -= 1;
 
-    healthBar.width = b.health/bossLives;
+        healthBar.width = b.health/bossLives;
 
-    if (b.health < 1) {
+        if (b.health < 1) {
 
-        b.alive = false;
-        b.animations.play('death');
-        b.Tween.stop();
-        score += 1000 * lives.countLiving();
-        scoreText.text = scoreStr + score;
-        stateText.text = '     You win!\n      Click to\ncontinue killing';
-        stateText.visible = true;
-        game.input.onTap.addOnce(replay, this);
+            b.alive = false;
+            b.animations.play('death');
+            b.Tween.stop();
+            score += 1000 * lives.countLiving();
+            scoreText.text = scoreStr + score;
+            stateText.text = '     You win!\n      Click to\ncontinue killing';
+            stateText.visible = true;
+            game.input.onTap.addOnce(replay, this);
+        }
     }
 }
 function restart() {
