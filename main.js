@@ -28,17 +28,22 @@ var movingSpeed = 100;
 
 var enemies;
 var deadEnemies;
-var enemyWait = 1000;
+var startEnemyWait = 1000;
+var enemyWait = startEnemyWait;
 var enemyTime = 0;
 var enemyBullets;
 var killCount = 0;
 var killTarget = 20;
 
 var boss;
-var bossLives = 25;
+var startBossLives = 25;
+var bossLives = startBossLives;
 var bossFight = false;
 var bossShootTime = 0;
 var bossShootWait = 20;
+var startBossBulletSpeed = 300;
+var bossBulletSpeed = startBossBulletSpeed;
+var bossLevel = 0;
 
 var bullets;
 var bulletTime = 0;
@@ -286,7 +291,7 @@ function bossShoot() {
         var bullet = enemyBullets.getFirstExists(false);
         if (bullet) {
             bullet.reset(boss.x, boss.y);
-            game.physics.arcade.moveToObject(bullet, ply, 300);
+            game.physics.arcade.moveToObject(bullet, ply, bossBulletSpeed);
 
             bossShootTime = game.time.now + bossShootWait;
         }
@@ -344,10 +349,10 @@ function startBossFight() {
 }
 function moveBoss() {
     boss.Tween = game.add.tween(boss);
-    boss.Tween.to({y: height - 140}, 5000)
-        .to({x: width - 140}, 8000)
-        .to({y: 140}, 5000)
-        .to({x:  140}, 8000)
+    boss.Tween.to({y: height - 140}, 5000 - bossLevel*200)
+        .to({x: width - 140}, 8000 - bossLevel*200)
+        .to({y: 140}, 5000 - bossLevel*200)
+        .to({x:  140}, 8000 - bossLevel*200)
         .loop()
         .start();
 }
@@ -402,28 +407,49 @@ function collisionBulletBoss(b, bullet) {
         b.animations.play('death');
         score += 1000 * lives.countLiving();
         scoreText.text = scoreStr + score;
-        stateText.text = '    You win!\nClick to restart';
+        stateText.text = '     You win!\n      Click to\ncontinue killing';
         stateText.visible = true;
-        game.input.onTap.addOnce(restart, this);
+        game.input.onTap.addOnce(replay, this);
     }
 }
 function restart() {
     lives.callAll('revive');
-    console.log(deadEnemies.length);
 
     while (deadEnemies.children.length > 0) {
         enemies.addMultiple(deadEnemies.children);
     }
-
-    console.log(deadEnemies.length);
 
     enemies.callAll('kill');
     ply.revive();
     boss.kill();
     score = 0;
     killCount = 0;
+    bossLevel = 0;
+
+    bossLives = startBossLives;
+    bossBulletSpeed = startBossBulletSpeed;
+    enemyWait = startEnemyWait;
+
     bossFight = false;
     scoreText.text = scoreStr + score;
     stateText.visible = false;
     enemyTime = game.time.now + enemyWait;
+
+}
+function replay() {
+    lives.callAll('revive');
+    while (deadEnemies.children.length > 0) {
+        enemies.addMultiple(deadEnemies.children);
+    }
+    enemies.callAll('kill');
+    boss.kill();
+    killCount = 0;
+    bossFight = false;
+    stateText.visible = false;
+
+    enemyWait *= 0.9;
+    enemyTime = game.time.now + enemyWait;
+    bossLives += 5;
+    bossBulletSpeed *= 1.1;
+    bossLevel++;
 }
