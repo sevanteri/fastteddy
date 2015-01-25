@@ -116,7 +116,7 @@ function create() {
     ply = game.add.sprite(width/2, height/2, 'teddy');
     ply.anchor.setTo(.5, .5);
     game.physics.enable(ply, Phaser.Physics.ARCADE);
-    ply.body.setSize(38,59);
+    ply.body.setSize(30,45);
     ply.body.collideWorldBounds = true;
     ply.animations.add('walkd', framesFunc(1), 10, true);
     ply.animations.add('walku', framesFunc(2), 10, true);
@@ -385,7 +385,6 @@ function startBossFight() {
     moveBoss();
 }
 function moveBoss() {
-    boss.Tween.stop();
     boss.Tween = game.add.tween(boss);
     boss.Tween.to({y: height - 140}, 5000 - bossLevel*200)
         .to({x: width - 140}, 8000 - bossLevel*200)
